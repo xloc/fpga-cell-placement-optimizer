@@ -7,7 +7,7 @@ pub struct Net {
     pub pins: Vec<PinID>,
 }
 
-// pub struct Pin {
-//     pub id: usize,
-//     pub net_ids: Vec<usize>,
-// }
+pub struct Pin {
+    pub id: usize,
+    pub net_ids: Vec<usize>,
+}

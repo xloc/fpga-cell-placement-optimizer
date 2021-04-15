@@ -3,7 +3,7 @@ use rand::seq::SliceRandom;
 use crate::blif::BLIFInfo;
 use crate::placement::Placement;
 // use crate::typing::Pin;
-use crate::typing::{Coor, Net};
+use crate::typing::{Coor, Net, Pin};
 
 fn mutate(mut assignment: Placement, coors: &Vec<Coor>, n_mutation: usize) -> Placement {
     for _ in 0..n_mutation {
@@ -44,18 +44,18 @@ pub fn genetic_placement(
         i_net += 1;
     }
 
-    // let mut pins: Vec<Pin> = Vec::new();
-    // for i_pin in 0..blif.n_pin {
-    //     pins.push(Pin {
-    //         id: i_pin,
-    //         net_ids: Vec::new(),
-    //     });
-    // }
-    // for net in nets.iter() {
-    //     for pin_id in &net.pins {
-    //         pins[*pin_id].net_ids.push(net.id);
-    //     }
-    // }
+    let mut pins: Vec<Pin> = Vec::new();
+    for i_pin in 0..blif.n_pin {
+        pins.push(Pin {
+            id: i_pin,
+            net_ids: Vec::new(),
+        });
+    }
+    for net in nets.iter() {
+        for pin_id in &net.pins {
+            pins[*pin_id].net_ids.push(net.id);
+        }
+    }
 
     // println!("{:?}", cell_assignment);
 
