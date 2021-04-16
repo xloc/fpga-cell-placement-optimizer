@@ -5,8 +5,8 @@ mod placement;
 mod typing;
 
 mod algorithms;
-use crate::algorithms::annealing::annealing_placement;
-use crate::algorithms::genetic::genetic_placement;
+use crate::algorithms::annealing_placement;
+use crate::algorithms::genetic_placement;
 
 #[test]
 fn pair_sa() {
@@ -33,11 +33,11 @@ fn alu2_sa() {
 }
 
 #[test]
-fn alu2_genetic() {
-    let filename = "benchmarks/alu2.blif";
+fn genetic() {
+    let filename = "benchmarks/pair.blif";
     let info = BLIFInfo::from_file(filename);
     // cost = 2010 ; time = 630s
-    genetic_placement(&info, 50, 40, 100, 30, 3, 10);
+    genetic_placement(&info, 50, 40, 100, 30, 1, 1);
 }
 
 fn main() {
