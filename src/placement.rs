@@ -1,34 +1,33 @@
 use rand::seq::SliceRandom;
 
-use crate::blif::BLIFInfo;
 use crate::bound_box::BoundBox;
-use crate::typing::{Coor, Net, Pin, PinID};
+use crate::problem::Problem;
+use crate::typing::{Coor, PinID};
 
 #[derive(Clone)]
-pub struct Placement {
-    nx: usize,
-    ny: usize,
+pub struct Placement<'a> {
+    problem: &'a Problem,
 
     pin2coor: Vec<Coor>,
     coor2pin: Vec<Vec<Option<PinID>>>,
 }
 
-impl Placement {
-    pub fn new(nx: usize, ny: usize, coors: &Vec<Coor>, blif: &BLIFInfo) -> Self {
-        let cell_assignment: Vec<Coor> = coors
-            .choose_multiple(&mut rand::thread_rng(), blif.n_pin)
+impl<'a> Placement<'a> {
+    pub fn new(problem: &'a Problem) -> Self {
+        let cell_assignment: Vec<Coor> = problem
+            .coors
+            .choose_multiple(&mut rand::thread_rng(), problem.n_pin)
             .map(|i| *i)
             .collect();
 
-        let mut grid: Vec<Vec<Option<PinID>>> = vec![vec![None; ny]; nx];
+        let mut grid: Vec<Vec<Option<PinID>>> = vec![vec![None; problem.ny]; problem.nx];
         for (i_pin, coor) in cell_assignment.iter().enumerate() {
             let (x, y) = *coor;
             grid[x][y] = Some(i_pin);
         }
 
-        Placement {
-            nx,
-            ny,
+        Self {
+            problem: problem,
             coor2pin: grid,
             pin2coor: cell_assignment,
         }
@@ -55,9 +54,9 @@ impl Placement {
         }
     }
 
-    pub fn cost(&self, nets: &Vec<Net>) -> usize {
+    pub fn cost(&self) -> usize {
         let mut hp_cost = 0;
-        for net in nets.iter() {
+        for net in self.problem.nets.iter() {
             let mut bb = BoundBox::new();
             for pin_id in &net.pins {
                 let coor = self.pin2coor[*pin_id];
@@ -68,13 +67,13 @@ impl Placement {
         hp_cost
     }
 
-    pub fn cell_cost(&self, pins: &Vec<Pin>, nets: &Vec<Net>, coor: Coor) -> usize {
+    pub fn cell_cost(&self, coor: Coor) -> usize {
         let (x, y) = coor;
         if let Some(pin) = self.coor2pin[x][y] {
             let mut hp_cost = 0;
-            for net_id in pins[pin].net_ids.iter() {
+            for net_id in self.problem.pins[pin].net_ids.iter() {
                 let mut bb = BoundBox::new();
-                for pin_id in &nets[*net_id].pins {
+                for pin_id in &self.problem.nets[*net_id].pins {
                     let coor = self.pin2coor[*pin_id];
                     bb.add_coor(coor);
                 }
@@ -85,14 +84,6 @@ impl Placement {
             0
         }
     }
-}
-
-macro_rules! hashmap {
-    ($( $key: expr => $val: expr ),*) => {{
-         let mut map = ::std::collections::HashMap::new();
-         $( map.insert($key, $val); )*
-         map
-    }}
 }
 
 #[test]
@@ -109,6 +100,7 @@ fn it_should_swap_correctly() {
 
     let pin2coor = vec![(0, 0), (2, 1), (3, 2)];
 
+    use crate::typing::Net;
     #[rustfmt::skip]
     let nets = vec![
         Net {id: 0, name: String::from("0"), pins: vec![0, 1]},
@@ -116,7 +108,9 @@ fn it_should_swap_correctly() {
     ];
 
     #[rustfmt::skip]
-    let mut p = Placement { nx, ny, coor2pin, pin2coor };
+    let problem = Problem { nx, ny, nets, n_pin: 3, pins: vec![], coors: vec![] };
+    #[rustfmt::skip]
+    let mut p = Placement { problem: &problem, coor2pin, pin2coor };
 
     p.swap((0, 0), (2, 1));
     assert_eq!(p.coor2pin[0][0], Some(1));
@@ -150,6 +144,7 @@ fn should_calculate_cost_correctly() {
 
     let pin2coor = vec![(0, 0), (2, 1), (3, 2)];
 
+    use crate::typing::Net;
     #[rustfmt::skip]
     let nets = vec![
         Net {id: 0, name: String::from("0"), pins: vec![0, 1]},
@@ -157,18 +152,20 @@ fn should_calculate_cost_correctly() {
     ];
 
     #[rustfmt::skip]
-    let mut p = Placement { nx, ny, coor2pin, pin2coor };
+    let problem = Problem { nx, ny, nets, n_pin: 3, pins: vec![], coors: vec![] };
+    #[rustfmt::skip]
+    let mut p = Placement { problem: &problem, coor2pin, pin2coor };
 
-    assert_eq!(p.cost(&nets), 8);
+    assert_eq!(p.cost(), 8);
 
     p.swap((0, 0), (2, 1));
-    assert_eq!(p.cost(&nets), 5);
+    assert_eq!(p.cost(), 5);
     p.swap((0, 0), (2, 1));
 
     p.swap((0, 0), (1, 0));
-    assert_eq!(p.cost(&nets), 6);
+    assert_eq!(p.cost(), 6);
     p.swap((0, 0), (1, 0));
 
     p.swap((3, 1), (0, 0));
-    assert_eq!(p.cost(&nets), 2);
+    assert_eq!(p.cost(), 2);
 }

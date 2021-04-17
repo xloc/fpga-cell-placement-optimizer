@@ -1,72 +1,33 @@
 use rand::seq::SliceRandom;
 
-use crate::blif::BLIFInfo;
-use crate::placement;
-use crate::typing;
+use crate::problem::Problem;
 
-pub fn annealing_placement(
-    blif: &BLIFInfo,
-    nx: usize,
-    ny: usize,
-    t_init: f32,
-    t_decrease_factor: f32,
-    t_terminate: f32,
-) {
-    let mut t = t_init;
+pub struct Params {
+    pub t_init: f32,
+    pub t_decrease_factor: f32,
+    pub t_terminate: f32,
+}
+
+pub fn annealing_placement(problem: &Problem, params: &Params) {
+    let mut t = params.t_init;
     let mut i_iter = 0;
-    let n_batch = (100_f32 * (blif.n_pin as f32).powf(4. / 3.)) as usize;
+    let n_batch = (100_f32 * (problem.n_pin as f32).powf(4. / 3.)) as usize;
+
+    let mut sol = problem.make_placement();
 
     use rand::Rng;
     let mut rng = rand::thread_rng();
-
-    use typing::Coor;
-    let mut coors: Vec<Coor> = Vec::new();
-    for x in 0..nx {
-        for y in 0..ny {
-            coors.push((x, y));
-        }
-    }
-
-    use placement::Placement;
-    let mut sol = Placement::new(nx, ny, &coors, &blif);
-
-    use typing::Net;
-    let mut nets: Vec<Net> = Vec::new();
-    let mut i_net = 0;
-    for (name, pins) in blif.net_list.iter() {
-        nets.push(Net {
-            id: i_net,
-            name: name.clone(),
-            pins: pins.clone(),
-        });
-        i_net += 1;
-    }
-
-    use typing::Pin;
-    let mut pins: Vec<Pin> = Vec::new();
-    for i_pin in 0..blif.n_pin {
-        pins.push(Pin {
-            id: i_pin,
-            net_ids: Vec::new(),
-        });
-    }
-    for net in nets.iter() {
-        for pin_id in &net.pins {
-            pins[*pin_id].net_ids.push(net.id);
-        }
-    }
-
     loop {
         let mut acc_delta: i128 = 0;
         for _ in 0..n_batch {
             // randomly select two pins
-            let (ca, cb) = take_2(&coors);
+            let (ca, cb) = take_2(&problem.coors);
             // calculate previous cost
-            let cost_prev = sol.cell_cost(&pins, &nets, ca) + sol.cell_cost(&pins, &nets, cb);
+            let cost_prev = sol.cell_cost(ca) + sol.cell_cost(cb);
             // swap pin position
             sol.swap(ca, cb);
             // calculate current cost
-            let cost_curr = sol.cell_cost(&pins, &nets, ca) + sol.cell_cost(&pins, &nets, cb);
+            let cost_curr = sol.cell_cost(ca) + sol.cell_cost(cb);
             // calculate delta cost
             let delta_cost: f32 = cost_curr as f32 - cost_prev as f32;
 
@@ -82,12 +43,12 @@ pub fn annealing_placement(
             i_iter,
             t,
             acc_delta,
-            sol.cost(&nets)
+            sol.cost()
         );
 
         // decrease t
-        t *= t_decrease_factor;
-        if t < t_terminate {
+        t *= params.t_decrease_factor;
+        if t < params.t_terminate {
             break;
         }
         i_iter += 1;
