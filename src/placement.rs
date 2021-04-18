@@ -6,10 +6,12 @@ use crate::typing::{Coor, PinID};
 
 #[derive(Clone)]
 pub struct Placement<'a> {
-    problem: &'a Problem,
+    pub problem: &'a Problem,
 
     pin2coor: Vec<Coor>,
     coor2pin: Vec<Vec<Option<PinID>>>,
+
+    _cost: Option<usize>,
 }
 
 impl<'a> Placement<'a> {
@@ -30,10 +32,12 @@ impl<'a> Placement<'a> {
             problem: problem,
             coor2pin: grid,
             pin2coor: cell_assignment,
+            _cost: None,
         }
     }
 
     pub fn swap(&mut self, ca: Coor, cb: Coor) {
+        self._cost = None;
         let pa = self.coor2pin[ca.0][ca.1];
         let pb = self.coor2pin[cb.0][cb.1];
 
@@ -54,7 +58,10 @@ impl<'a> Placement<'a> {
         }
     }
 
-    pub fn cost(&self) -> usize {
+    pub fn cost_mut(&mut self) -> usize {
+        if let Some(cost) = self._cost {
+            return cost;
+        }
         let mut hp_cost = 0;
         for net in self.problem.nets.iter() {
             let mut bb = BoundBox::new();
@@ -64,7 +71,12 @@ impl<'a> Placement<'a> {
             }
             hp_cost += bb.half_perimeter();
         }
+        self._cost = Some(hp_cost);
         hp_cost
+    }
+
+    pub fn cost_panic(&self) -> usize {
+        self._cost.unwrap()
     }
 
     pub fn cell_cost(&self, coor: Coor) -> usize {
@@ -110,7 +122,7 @@ fn it_should_swap_correctly() {
     #[rustfmt::skip]
     let problem = Problem { nx, ny, nets, n_pin: 3, pins: vec![], coors: vec![] };
     #[rustfmt::skip]
-    let mut p = Placement { problem: &problem, coor2pin, pin2coor };
+    let mut p = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
 
     p.swap((0, 0), (2, 1));
     assert_eq!(p.coor2pin[0][0], Some(1));
@@ -154,18 +166,18 @@ fn should_calculate_cost_correctly() {
     #[rustfmt::skip]
     let problem = Problem { nx, ny, nets, n_pin: 3, pins: vec![], coors: vec![] };
     #[rustfmt::skip]
-    let mut p = Placement { problem: &problem, coor2pin, pin2coor };
+    let mut p = Placement { problem: &problem, coor2pin, pin2coor, _cost: None };
 
-    assert_eq!(p.cost(), 8);
+    assert_eq!(p.cost_mut(), 8);
 
     p.swap((0, 0), (2, 1));
-    assert_eq!(p.cost(), 5);
+    assert_eq!(p.cost_mut(), 5);
     p.swap((0, 0), (2, 1));
 
     p.swap((0, 0), (1, 0));
-    assert_eq!(p.cost(), 6);
+    assert_eq!(p.cost_mut(), 6);
     p.swap((0, 0), (1, 0));
 
     p.swap((3, 1), (0, 0));
-    assert_eq!(p.cost(), 2);
+    assert_eq!(p.cost_mut(), 2);
 }

@@ -52,14 +52,23 @@ fn alu2_sa() {
     annealing_placement(&problem, &params);
 }
 
-// #[test]
-// fn genetic() {
-//     let filename = "benchmarks/pair.blif";
-//     let info = BLIFInfo::from_file(filename);
-//     let problem = Problem::new(&info, 50, 40);
-//     // cost = 2010 ; time = 630s
-//     genetic_placement(&info, 50, 40, 100, 30, 1, 1);
-// }
+#[test]
+fn genetic() {
+    let filename = "benchmarks/apex1.blif";
+    let info = BLIFInfo::from_file(filename);
+    let problem = Problem::new(&info, 50, 40);
+    let params = algorithms::GeneticParams {
+        n_generation: 1_000_000,
+        n_population: 100,
+        reserve_ratio: 0.2,
+        random_reserve_ratio: 0.3,
+        crossover_probability: 0.3,
+        mutation_probability: 0.05,
+        local_improvement_rate_probability: 0.05,
+    };
+    // cost =  ; time =
+    genetic_placement(&problem, &params);
+}
 
 fn main() {
     let filename = "benchmarks/alu2.blif";
