@@ -8,10 +8,10 @@ use crate::typing::{Coor, PinID};
 pub struct Placement<'a> {
     pub problem: &'a Problem,
 
-    pin2coor: Vec<Coor>,
-    coor2pin: Vec<Vec<Option<PinID>>>,
+    pub pin2coor: Vec<Coor>,
+    pub coor2pin: Vec<Vec<Option<PinID>>>,
 
-    _cost: Option<usize>,
+    pub _cost: Option<usize>,
 }
 
 impl<'a> Placement<'a> {

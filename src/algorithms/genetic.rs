@@ -3,20 +3,7 @@ use rand::Rng;
 
 use crate::placement::Placement;
 use crate::problem::Problem;
-// use crate::typing::Pin;
-use crate::typing::{Coor, Net, Pin};
-
-// fn mutate<'a>(mut assignment: Placement, coors: &Vec<Coor>, n_mutation: usize) -> Placement {
-//     for _ in 0..n_mutation {
-//         let ab = coors
-//             .choose_multiple(&mut rand::thread_rng(), 2)
-//             .collect::<Vec<_>>();
-//         let (ca, cb) = (*ab[0], *ab[1]);
-
-//         assignment.swap(ca, cb);
-//     }
-//     assignment
-// }
+use crate::typing::{Coor, PinID};
 
 pub struct Params {
     pub n_generation: usize,
@@ -41,7 +28,7 @@ fn selection(mut population: Vec<Placement>, n_fixed: usize, n_random: usize) ->
         .collect();
     fitnesses.shuffle(&mut rand::thread_rng());
     // println!("{:?}", fitnesses);
-    let fitness_sum = fitnesses.iter().fold(0, |acc, (i, fit)| acc + fit);
+    let fitness_sum = fitnesses.iter().fold(0, |acc, (_, fit)| acc + fit);
     let arc_len = fitness_sum / n_random;
     let random_offset = (rand::thread_rng().gen::<f32>() * arc_len as f32) as usize;
     let mut selected_index = Vec::new();
@@ -72,6 +59,7 @@ fn selection(mut population: Vec<Placement>, n_fixed: usize, n_random: usize) ->
     population
 }
 
+#[allow(dead_code)]
 fn make_fixture() -> Problem {
     let filename = "benchmarks/alu2.blif";
     use crate::blif::BLIFInfo;
@@ -82,7 +70,7 @@ fn make_fixture() -> Problem {
 #[test]
 fn test_selection() {
     let problem = make_fixture();
-    let mut population: Vec<Placement> = (0..10).map(|i| problem.make_placement()).collect();
+    let mut population: Vec<Placement> = (0..10).map(|_| problem.make_placement()).collect();
     population.iter_mut().for_each(|p| {
         p.cost_mut();
     });
@@ -122,11 +110,142 @@ fn improve(mut placement: Placement) -> Option<Placement> {
     }
 }
 
-fn crossover<'a>(a: &'a Placement, b: &'a Placement) -> (Placement<'a>, Placement<'a>) {
-    let a = a.clone();
-    let b = b.clone();
+fn crossover<'a>(a: &Placement, b: &Placement, c: &'a mut Placement, d: &'a mut Placement) {
+    let problem = a.problem;
+    let i_divide = (problem.nx as f32 * rand::thread_rng().gen::<f32>()) as usize;
 
-    (a, b)
+    crossover_half(a, b, c, i_divide, &mut rand::thread_rng());
+    crossover_half(b, a, d, i_divide, &mut rand::thread_rng());
+}
+
+fn crossover_half<'a, R: Rng>(
+    a: &Placement,
+    b: &Placement,
+    out: &'a mut Placement,
+    i_divide: usize,
+    rng: &mut R,
+) {
+    // TODO: vertical division
+    let problem = a.problem;
+
+    // copy b.right to d.right
+    let mut d_p2c: Vec<Option<Coor>> = vec![None; problem.n_pin];
+    for x in i_divide..problem.nx {
+        for y in 0..problem.ny {
+            if let Some(pin) = b.coor2pin[x][y] {
+                d_p2c[pin] = Some((x, y));
+            }
+        }
+    }
+    // copy a.left to d.left if not duplicated
+    for x in 0..i_divide {
+        for y in 0..problem.ny {
+            if let Some(pin) = a.coor2pin[x][y] {
+                // ^ if coor (x, y) contains a pin
+                if let Some(dup_coor) = d_p2c[pin] {
+                    // ^ if duplicates: pin[a.left] already in c.right
+                    // println!("duplicate :pin={}, coor={:?}", pin, dup_coor);
+                    // duplicated_pins
+                } else {
+                    // ^ no duplication
+                    out.coor2pin[x][y] = a.coor2pin[x][y];
+                    d_p2c[pin] = Some((x, y));
+                }
+            }
+        }
+    }
+
+    for (pin_id, _) in d_p2c.iter().enumerate().filter(|(_, p)| p.is_none()) {
+        // println!("{}", pin_id);
+        loop {
+            let (x, y) = *problem.coors.choose(rng).unwrap();
+            if out.coor2pin[x][y].is_none() {
+                out.coor2pin[x][y] = Some(pin_id);
+                break;
+            }
+        }
+    }
+
+    let mut d_new_pin2coor: Vec<Option<Coor>> = vec![None; problem.n_pin];
+    for x in 0..problem.nx {
+        for y in 0..problem.ny {
+            if let Some(pin) = out.coor2pin[x][y] {
+                d_new_pin2coor[pin] = Some((x, y));
+            }
+        }
+    }
+
+    for i_pin in 0..problem.n_pin {
+        out.pin2coor[i_pin] = d_new_pin2coor[i_pin].unwrap();
+    }
+}
+
+#[test]
+fn should_crossover_without_problem() {
+    let problem = make_fixture();
+    let a = problem.make_placement();
+    let b = problem.make_placement();
+    let mut out = b.clone();
+    crossover_half(&a, &b, &mut out, problem.nx / 2, &mut rand::thread_rng());
+}
+
+#[allow(dead_code)]
+fn derive_pin2coor(
+    coor2pin: &Vec<Vec<Option<PinID>>>,
+    nx: usize,
+    ny: usize,
+    n_pin: usize,
+) -> Vec<Coor> {
+    let mut d_new_pin2coor: Vec<Option<Coor>> = vec![None; n_pin];
+    for x in 0..nx {
+        for y in 0..ny {
+            if let Some(pin) = coor2pin[x][y] {
+                d_new_pin2coor[pin] = Some((x, y));
+            }
+        }
+    }
+    let mut pin2coor = Vec::new();
+    for i_pin in 0..n_pin {
+        pin2coor.push(d_new_pin2coor[i_pin].unwrap());
+    }
+    pin2coor
+}
+
+#[test]
+fn should_crossover_if_no_overlap() {
+    let (nx, ny) = (4, 3);
+    let n_pin = 3;
+    #[rustfmt::skip]
+    let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: vec![] };
+
+    #[rustfmt::skip]
+    let coor2pin = vec![
+        //   y=0      y=1      y=2
+        vec![None   , Some(0), None   ], // x=0
+        vec![None,    None,    None   ], // x=1
+        vec![Some(1), None  ,  None ], // x=2
+        vec![None,    Some(2), None], // x=3 
+    ];
+    let pin2coor = derive_pin2coor(&coor2pin, nx, ny, n_pin);
+    #[rustfmt::skip]
+    let a = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
+
+    #[rustfmt::skip]
+    let coor2pin = vec![
+        //   y=0      y=1      y=2
+        vec![Some(0), None,    None   ], // x=0
+        vec![None,    None,    None   ], // x=1
+        vec![None,    Some(1), None   ], // x=2
+        vec![None,    None,    Some(2)], // x=3 
+    ];
+    let pin2coor = derive_pin2coor(&coor2pin, nx, ny, n_pin);
+    #[rustfmt::skip]
+    let b = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
+
+    let mut out = b.clone();
+    crossover_half(&a, &b, &mut out, 2, &mut rand::thread_rng());
+
+    println!("{:?}", out.coor2pin);
 }
 
 pub fn genetic_placement(problem: &Problem, params: &Params) {
@@ -150,7 +269,7 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
         });
         population.sort_by_cached_key(|i| i.cost_panic());
         if i_iter % 1000 == 0 {
-            println!("{}", population[0].cost_mut());
+            println!("{},", population[0].cost_mut());
         }
         // break if converge
         if i_iter > params.n_generation {
@@ -159,29 +278,34 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
             i_iter += 1;
         }
         // selection
-        let mut survived = selection(population, n_reserve, n_random_reserve);
+        let survived = selection(population, n_reserve, n_random_reserve);
 
         // FPGA PLACEMENT OPTIMIZATION BY TWO-STEP UNIFIED GENETIC ALGORITHM AND SIMULATED ANNEALING ALGORITHM
         // crossover
-        // let mut crossed = Vec::new();
-        // let parents = &survived;
-        // let mut parent_index = (0..parents.len() * 2 / 2).collect::<Vec<usize>>();
-        // parent_index.shuffle(rng);
-        // let mut parents_index_iter = parent_index.iter();
-        // for _ in 0..parents.len() / 2 {
-        //     let ia = *parents_index_iter.next().unwrap();
-        //     let ib = *parents_index_iter.next().unwrap();
-        //     let (c, d) = crossover(&parents[ia], &parents[ib]);
-        //     crossed.push(c);
-        //     crossed.push(d);
-        // }
+        let mut crossed = Vec::new();
+        let parents = &survived;
+        let mut parent_index: Vec<usize> = (0..parents.len()).collect();
+        parent_index.shuffle(rng);
+        let mut parents_index_iter = parent_index.iter();
+        for _ in 0..parents.len() / 2 {
+            if rng.gen::<f32>() < params.crossover_probability {
+                let a = &parents[*parents_index_iter.next().unwrap()];
+                let b = &parents[*parents_index_iter.next().unwrap()];
+                let mut c = a.clone();
+                let mut d = b.clone();
+                crossover(a, b, &mut c, &mut d);
+                crossed.push(c);
+                crossed.push(d);
+            }
+        }
 
         // mutation
         let mut mutated = Vec::new();
-        // TODO: don't mutate all
         for p in survived.iter() {
-            let mp = mutate(p.clone());
-            mutated.push(mp);
+            if rng.gen::<f32>() < params.mutation_probability {
+                let mp = mutate(p.clone());
+                mutated.push(mp);
+            }
         }
 
         // improvement
@@ -190,7 +314,7 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
         // improvement and join population
         population = survived;
         population.extend(mutated);
-        // population.extend(crossed);
+        population.extend(crossed);
         if let Some(p) = improved {
             population.push(p);
         }
