@@ -60,10 +60,10 @@ fn genetic() {
     let params = algorithms::GeneticParams {
         n_generation: 26_000,
         n_population: 100,
-        reserve_ratio: 0.1,
-        random_reserve_ratio: 0.1,
+        reserve_ratio: 0.2,
+        random_reserve_ratio: 0.2,
         crossover_probability: 1.0,
-        mutation_probability: 0.0,
+        mutation_probability: 1.0,
         local_improvement_rate_probability: 0.05,
     };
     println!(

@@ -114,8 +114,8 @@ fn crossover<'a>(a: &Placement, b: &Placement, c: &'a mut Placement, d: &'a mut 
     let problem = a.problem;
     let i_divide = (problem.nx as f32 * rand::thread_rng().gen::<f32>()) as usize;
 
-    crossover_half(a, b, c, i_divide, &mut rand::thread_rng());
-    crossover_half(b, a, d, i_divide, &mut rand::thread_rng());
+    crossover_half(a, b, d, i_divide, &mut rand::thread_rng());
+    crossover_half(b, a, c, i_divide, &mut rand::thread_rng());
 }
 
 fn crossover_half<'a, R: Rng>(
@@ -128,36 +128,40 @@ fn crossover_half<'a, R: Rng>(
     // TODO: vertical division
     let problem = a.problem;
 
-    // copy b.right to d.right
-    let mut d_p2c: Vec<Option<Coor>> = vec![None; problem.n_pin];
+    // copy b.right to out.right
+    let mut out_p2c: Vec<Option<Coor>> = vec![None; problem.n_pin];
     for x in i_divide..problem.nx {
         for y in 0..problem.ny {
             if let Some(pin) = b.coor2pin[x][y] {
-                d_p2c[pin] = Some((x, y));
+                out_p2c[pin] = Some((x, y));
             }
         }
     }
-    // copy a.left to d.left if not duplicated
+
+    // copy a.left to out.left if not duplicated
     for x in 0..i_divide {
         for y in 0..problem.ny {
             if let Some(pin) = a.coor2pin[x][y] {
                 // ^ if coor (x, y) contains a pin
-                if let Some(dup_coor) = d_p2c[pin] {
+                if let Some(dup_coor) = out_p2c[pin] {
                     // ^ if duplicates: pin[a.left] already in c.right
                     // println!("duplicate :pin={}, coor={:?}", pin, dup_coor);
                     // duplicated_pins
                 } else {
                     // ^ no duplication
                     out.coor2pin[x][y] = a.coor2pin[x][y];
-                    d_p2c[pin] = Some((x, y));
+                    out_p2c[pin] = Some((x, y));
                 }
+            } else {
+                out.coor2pin[x][y] = None;
             }
         }
     }
 
-    for (pin_id, _) in d_p2c.iter().enumerate().filter(|(_, p)| p.is_none()) {
+    for (pin_id, _) in out_p2c.iter().enumerate().filter(|(_, p)| p.is_none()) {
         // println!("{}", pin_id);
         loop {
+            // FIXME it can be highly inefficient when empty cell is limited
             let (x, y) = *problem.coors.choose(rng).unwrap();
             if out.coor2pin[x][y].is_none() {
                 out.coor2pin[x][y] = Some(pin_id);
@@ -215,8 +219,10 @@ fn derive_pin2coor(
 fn should_crossover_if_no_overlap() {
     let (nx, ny) = (4, 3);
     let n_pin = 3;
+
+    use crate::problem::make_coors;
     #[rustfmt::skip]
-    let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: vec![] };
+    let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: make_coors(nx, ny) };
 
     #[rustfmt::skip]
     let coor2pin = vec![
@@ -245,7 +251,108 @@ fn should_crossover_if_no_overlap() {
     let mut out = b.clone();
     crossover_half(&a, &b, &mut out, 2, &mut rand::thread_rng());
 
-    println!("{:?}", out.coor2pin);
+    print_coor2pin(&problem, &out.coor2pin);
+    #[rustfmt::skip]
+    assert_eq!(&out.coor2pin, &vec![
+        //   y=0      y=1      y=2
+        vec![None,    Some(0), None   ], // x=0
+        vec![None,    None,    None   ], // x=1
+        vec![None,    Some(1), None   ], // x=2
+        vec![None,    None,    Some(2)], // x=3 
+    ]);
+}
+
+#[test]
+fn should_crossover_if_a_left_b_right_do_not_cover_all_pins() {
+    let (nx, ny) = (4, 3);
+    let n_pin = 3;
+
+    use crate::problem::make_coors;
+    #[rustfmt::skip]
+    let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: make_coors(nx, ny) };
+
+    #[rustfmt::skip]
+    let coor2pin = vec![
+        //   y=0      y=1      y=2
+        vec![None   , Some(0), None   ], // x=0
+        vec![None,    None,    None   ], // x=1
+        vec![Some(1), None  ,  None   ], // x=2
+        vec![None,    Some(2), None   ], // x=3 
+    ];
+    let pin2coor = derive_pin2coor(&coor2pin, nx, ny, n_pin);
+    #[rustfmt::skip]
+    let a = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
+
+    #[rustfmt::skip]
+    let coor2pin = vec![
+        //   y=0      y=1      y=2
+        vec![Some(0), Some(1), None   ], // x=0
+        vec![None,    None,    None   ], // x=1
+        vec![None,    None,    None   ], // x=2
+        vec![None,    None,    Some(2)], // x=3 
+    ];
+    let pin2coor = derive_pin2coor(&coor2pin, nx, ny, n_pin);
+    #[rustfmt::skip]
+    let b = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
+
+    let mut out = b.clone();
+    crossover_half(&a, &b, &mut out, 2, &mut rand::thread_rng());
+
+    print_coor2pin(&problem, &out.coor2pin);
+    assert_eq!(&out.coor2pin[3][2], &Some(2));
+    assert_eq!(&out.coor2pin[0][1], &Some(1));
+}
+
+#[test]
+fn should_crossover_if_a_left_b_right_have_overlapped_pins() {
+    let (nx, ny) = (4, 3);
+    let n_pin = 3;
+
+    use crate::problem::make_coors;
+    #[rustfmt::skip]
+    let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: make_coors(nx, ny) };
+
+    #[rustfmt::skip]
+    let coor2pin = vec![
+        //   y=0      y=1      y=2
+        vec![Some(1), Some(0), None   ], // x=0
+        vec![None,    None,    None   ], // x=1
+        vec![None,    None  ,  None   ], // x=2
+        vec![None,    Some(2), None   ], // x=3 
+    ];
+    let pin2coor = derive_pin2coor(&coor2pin, nx, ny, n_pin);
+    #[rustfmt::skip]
+    let a = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
+
+    #[rustfmt::skip]
+    let coor2pin = vec![
+        //   y=0      y=1      y=2
+        vec![None,    None,    None   ], // x=0
+        vec![None,    None,    Some(0)], // x=1
+        vec![None,    None,    None   ], // x=2
+        vec![None,    Some(1), Some(2)], // x=3
+    ];
+    let pin2coor = derive_pin2coor(&coor2pin, nx, ny, n_pin);
+    #[rustfmt::skip]
+    let b = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
+
+    let mut out = b.clone();
+    crossover_half(&a, &b, &mut out, 2, &mut rand::thread_rng());
+
+    print_coor2pin(&problem, &out.coor2pin);
+    assert_eq!(&out.coor2pin[0][1], &Some(0));
+    assert_eq!(&out.coor2pin[3][1], &Some(1));
+    assert_eq!(&out.coor2pin[3][2], &Some(2));
+}
+
+fn print_coor2pin(problem: &Problem, coor2pin: &Vec<Vec<Option<PinID>>>) {
+    println!("==============");
+    for x in 0..problem.nx {
+        for y in 0..problem.ny {
+            print!("{:10} ", format!("{:?}", &coor2pin[x][y]));
+        }
+        println!("");
+    }
 }
 
 pub fn genetic_placement(problem: &Problem, params: &Params) {
@@ -291,6 +398,7 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
             if rng.gen::<f32>() < params.crossover_probability {
                 let a = &parents[*parents_index_iter.next().unwrap()];
                 let b = &parents[*parents_index_iter.next().unwrap()];
+                // TODO: add lifetime and clone the placement in crossover_half
                 let mut c = a.clone();
                 let mut d = b.clone();
                 crossover(a, b, &mut c, &mut d);

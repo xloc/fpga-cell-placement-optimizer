@@ -12,14 +12,19 @@ pub struct Problem {
     pub pins: Vec<Pin>,
 }
 
+pub fn make_coors(nx: usize, ny: usize) -> Vec<Coor> {
+    let mut coors: Vec<Coor> = Vec::new();
+    for x in 0..nx {
+        for y in 0..ny {
+            coors.push((x, y));
+        }
+    }
+    coors
+}
+
 impl Problem {
     pub fn new(blif: &BLIFInfo, nx: usize, ny: usize) -> Self {
-        let mut coors: Vec<Coor> = Vec::new();
-        for x in 0..nx {
-            for y in 0..ny {
-                coors.push((x, y));
-            }
-        }
+        let coors = make_coors(nx, ny);
 
         let mut nets: Vec<Net> = Vec::new();
         let mut i_net = 0;
