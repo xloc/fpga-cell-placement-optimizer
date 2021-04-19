@@ -143,7 +143,7 @@ fn crossover_half<'a, R: Rng>(
         for y in 0..problem.ny {
             if let Some(pin) = a.coor2pin[x][y] {
                 // ^ if coor (x, y) contains a pin
-                if let Some(dup_coor) = out_p2c[pin] {
+                if let Some(_) = out_p2c[pin] {
                     // ^ if duplicates: pin[a.left] already in c.right
                     // println!("duplicate :pin={}, coor={:?}", pin, dup_coor);
                     // duplicated_pins
@@ -345,6 +345,7 @@ fn should_crossover_if_a_left_b_right_have_overlapped_pins() {
     assert_eq!(&out.coor2pin[3][2], &Some(2));
 }
 
+#[allow(dead_code)]
 fn print_coor2pin(problem: &Problem, coor2pin: &Vec<Vec<Option<PinID>>>) {
     println!("==============");
     for x in 0..problem.nx {
