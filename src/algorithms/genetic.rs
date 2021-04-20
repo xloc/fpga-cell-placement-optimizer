@@ -8,55 +8,56 @@ use crate::typing::{Coor, PinID};
 pub struct Params {
     pub n_generation: usize,
     pub n_population: usize,
-    pub reserve_ratio: f32,
-    pub random_reserve_ratio: f32,
-    pub crossover_probability: f32,
-    pub mutation_probability: f32,
-    pub local_improvement_rate_probability: f32,
+    pub n_elite: usize,
+    pub n_select: usize,
+    pub n_crossover: usize,
+    pub p_mutation: f32,
 }
 
-fn selection(mut population: Vec<Placement>, n_fixed: usize, n_random: usize) -> Vec<Placement> {
-    // n_reserve placements are reserved during placement
-    let mut selection_base = population.split_off(n_fixed);
-    // do random selection on less good placements
-    // weighted by costs
+fn selection(
+    mut selection_base: Vec<Placement>,
+    n_survive: usize,
+    padding_cost: bool,
+) -> Vec<Placement> {
     let cost_max = selection_base.last_mut().unwrap().cost_mut();
-    let mut fitnesses: Vec<(usize, usize)> = selection_base
-        .iter_mut()
-        .map(|i| cost_max - i.cost_mut() + (cost_max as f32 * 0.01) as usize)
-        .enumerate()
-        .collect();
-    fitnesses.shuffle(&mut rand::thread_rng());
-    // println!("{:?}", fitnesses);
+    let mut fitnesses: Vec<(usize, usize)> = if padding_cost {
+        let padding = (cost_max as f32 * 0.01) as usize;
+        selection_base
+            .iter_mut()
+            .map(|i| cost_max - i.cost_mut() + padding)
+            .enumerate()
+            .collect()
+    } else {
+        selection_base
+            .iter_mut()
+            .map(|i| cost_max - i.cost_mut())
+            .enumerate()
+            .collect()
+    };
+
+    let rng = &mut rand::thread_rng();
+    fitnesses.shuffle(rng);
     let fitness_sum = fitnesses.iter().fold(0, |acc, (_, fit)| acc + fit);
-    let arc_len = fitness_sum / n_random;
-    let random_offset = (rand::thread_rng().gen::<f32>() * arc_len as f32) as usize;
-    let mut selected_index = Vec::new();
+    let arc_len = fitness_sum / n_survive;
+    let random_offset = (rng.gen::<f32>() * arc_len as f32) as usize;
+
+    let mut is_selected = vec![false; selection_base.len()];
     let mut pos = random_offset;
     let mut acc = 0;
-    for (i, fit) in fitnesses {
-        acc += fit;
+    for (i, fitness) in fitnesses {
+        acc += fitness;
         if acc > pos {
-            selected_index.push(i);
+            is_selected[i] = true;
             pos += arc_len;
         }
     }
     // println!("{:?}", selected_index);
 
-    let mut opt_selection_base = Vec::new();
-    for p in selection_base {
-        opt_selection_base.push(Some(p));
-    }
-
-    for i in selected_index {
-        let p = std::mem::replace(&mut opt_selection_base[i], None);
-        if let Some(p) = p {
-            population.push(p);
-        } else {
-            println!("select twice");
-        }
-    }
-    population
+    selection_base
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, p)| if is_selected[i] { Some(p) } else { None })
+        .collect::<Vec<Placement>>()
 }
 
 #[allow(dead_code)]
@@ -82,7 +83,7 @@ fn test_selection() {
             .map(|i| i.cost_mut())
             .collect::<Vec<usize>>()
     );
-    let mut selected = selection(population, 3, 3);
+    let mut selected = selection(population, 6, true);
     println!(
         "{:?}",
         selected
@@ -92,10 +93,9 @@ fn test_selection() {
     );
 }
 
-fn mutate(mut placement: Placement) -> Placement {
+fn mutate(placement: &mut Placement) {
     let (ca, cb) = super::util::take_2(&placement.problem.coors);
     placement.swap(ca, cb);
-    placement
 }
 
 fn improve(mut placement: Placement) -> Option<Placement> {
@@ -300,7 +300,7 @@ fn should_crossover_if_a_left_b_right_do_not_cover_all_pins() {
 
     print_coor2pin(&problem, &out.coor2pin);
     assert_eq!(&out.coor2pin[3][2], &Some(2));
-    assert_eq!(&out.coor2pin[0][1], &Some(1));
+    assert_eq!(&out.coor2pin[0][1], &Some(0));
 }
 
 #[test]
@@ -367,8 +367,6 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
 
     let mut i_iter = 0;
 
-    let n_reserve = (params.reserve_ratio * params.n_population as f32) as usize;
-    let n_random_reserve = (params.random_reserve_ratio * params.n_population as f32) as usize;
     let rng = &mut rand::thread_rng();
     loop {
         // compute fitness and sort
@@ -386,46 +384,47 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
             i_iter += 1;
         }
         // selection
-        let survived = selection(population, n_reserve, n_random_reserve);
+        let selection_base = population.split_off(params.n_elite);
+        let elite = population;
+        // FIXME: pass padding conditions there
+        let survived = selection(selection_base, params.n_select - params.n_elite, true);
 
         // FPGA PLACEMENT OPTIMIZATION BY TWO-STEP UNIFIED GENETIC ALGORITHM AND SIMULATED ANNEALING ALGORITHM
         // crossover
         let mut crossed = Vec::new();
-        let parents = &survived;
-        let mut parent_index: Vec<usize> = (0..parents.len()).collect();
-        parent_index.shuffle(rng);
-        let mut parents_index_iter = parent_index.iter();
-        for _ in 0..parents.len() / 2 {
-            if rng.gen::<f32>() < params.crossover_probability {
-                let a = &parents[*parents_index_iter.next().unwrap()];
-                let b = &parents[*parents_index_iter.next().unwrap()];
-                // TODO: add lifetime and clone the placement in crossover_half
-                let mut c = a.clone();
-                let mut d = b.clone();
-                crossover(a, b, &mut c, &mut d);
-                crossed.push(c);
-                crossed.push(d);
-            }
+        let parents: Vec<&Placement> = elite.iter().chain(survived.iter()).collect();
+        for _ in 0..params.n_crossover {
+            let i_pa = rng.gen_range(0..parents.len());
+            let i_pb = rng.gen_range(0..parents.len());
+            let a = parents[i_pa];
+            let b = parents[i_pb];
+            // TODO: add lifetime and clone the placement in crossover_half
+            let mut c = a.clone();
+            let mut d = b.clone();
+            c._cost = None;
+            d._cost = None;
+            crossover(a, b, &mut c, &mut d);
+            crossed.push(c);
+            crossed.push(d);
         }
 
         // mutation
-        let mut mutated = Vec::new();
-        for p in survived.iter() {
-            if rng.gen::<f32>() < params.mutation_probability {
-                let mp = mutate(p.clone());
-                mutated.push(mp);
+        let mut mutation_base = survived;
+        mutation_base.extend(crossed.into_iter());
+        for i in 0..mutation_base.len() {
+            if rng.gen::<f32>() < params.p_mutation {
+                mutate(&mut mutation_base[i]);
             }
         }
 
         // improvement
-        let improved = improve(survived.choose(rng).unwrap().clone());
+        // let improved = improve(survived.choose(rng).unwrap().clone());
 
         // improvement and join population
-        population = survived;
-        population.extend(mutated);
-        population.extend(crossed);
-        if let Some(p) = improved {
-            population.push(p);
-        }
+        population = elite;
+        population.extend(mutation_base);
+        // if let Some(p) = improved {
+        //     population.push(p);
+        // }
     }
 }

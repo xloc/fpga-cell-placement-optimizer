@@ -24,6 +24,13 @@ pub fn make_coors(nx: usize, ny: usize) -> Vec<Coor> {
 
 impl Problem {
     pub fn new(blif: &BLIFInfo, nx: usize, ny: usize) -> Self {
+        if blif.n_pin as f32 > (nx * ny) as f32 * 0.7 {
+            panic!(
+                "chip size is too small (n_pin={}, n_cell={})",
+                blif.n_pin,
+                nx * ny
+            );
+        }
         let coors = make_coors(nx, ny);
 
         let mut nets: Vec<Net> = Vec::new();

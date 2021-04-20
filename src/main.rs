@@ -59,16 +59,15 @@ fn genetic() {
     let problem = Problem::new(&info, 50, 40);
     let params = algorithms::GeneticParams {
         n_generation: 26_000,
-        n_population: 100,
-        reserve_ratio: 0.2,
-        random_reserve_ratio: 0.2,
-        crossover_probability: 1.0,
-        mutation_probability: 1.0,
-        local_improvement_rate_probability: 0.05,
+        n_population: 200,
+        n_elite: 40,
+        n_select: 80,
+        n_crossover: 60,
+        p_mutation: 0.8,
     };
     println!(
         "\"cross={:.2}, mut={:.2}\"",
-        params.crossover_probability, params.mutation_probability
+        params.n_crossover, params.p_mutation
     );
     println!(":[");
     // cost =  ; time =
@@ -89,13 +88,12 @@ fn main() {
     annealing_placement(&problem, &params);
 
     let params = algorithms::GeneticParams {
-        n_generation: 1_000_000,
+        n_generation: 26_000,
         n_population: 100,
-        reserve_ratio: 0.2,
-        random_reserve_ratio: 0.3,
-        crossover_probability: 0.3,
-        mutation_probability: 0.05,
-        local_improvement_rate_probability: 0.05,
+        n_elite: 30,
+        n_select: 40,
+        n_crossover: 30,
+        p_mutation: 1.0,
     };
     // cost =  ; time =
     genetic_placement(&problem, &params);
