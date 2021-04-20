@@ -63,7 +63,7 @@ fn genetic() {
         n_elite: 40,
         n_select: 80,
         n_crossover: 60,
-        p_mutation: 0.8,
+        p_mutation: 1.0,
     };
     println!(
         "\"cross={:.2}, mut={:.2}\"",

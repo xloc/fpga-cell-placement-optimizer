@@ -356,6 +356,31 @@ fn print_coor2pin(problem: &Problem, coor2pin: &Vec<Vec<Option<PinID>>>) {
     }
 }
 
+fn print_stats(population: &mut Vec<Placement>) {
+    let best = population[0].cost_panic();
+    let mean = population
+        .iter_mut()
+        .map(|p| p.cost_mut() as f32)
+        .sum::<f32>()
+        / population.len() as f32;
+    let variance = population
+        .iter()
+        .map(|p| {
+            let diff = mean - p.cost_panic() as f32;
+            diff * diff
+        })
+        .sum::<f32>()
+        / population.len() as f32;
+    let std = variance.sqrt();
+
+    println!(
+        "{best:6} {mean:6.0} {std:6.0}",
+        best = best,
+        mean = mean,
+        std = std
+    );
+}
+
 pub fn genetic_placement(problem: &Problem, params: &Params) {
     // init population
     let mut population: Vec<Placement> = Vec::new();
@@ -375,7 +400,7 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
         });
         population.sort_by_cached_key(|i| i.cost_panic());
         if i_iter % 1000 == 0 {
-            println!("{},", population[0].cost_mut());
+            print_stats(&mut population);
         }
         // break if converge
         if i_iter > params.n_generation {
