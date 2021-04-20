@@ -1,8 +1,8 @@
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-use crate::placement::Placement;
-use crate::problem::Problem;
+use crate::typing::Placement;
+use crate::typing::Problem;
 use crate::typing::{Coor, PinID};
 
 pub struct Params {
@@ -63,7 +63,7 @@ fn selection(
 #[allow(dead_code)]
 fn make_fixture() -> Problem {
     let filename = "benchmarks/alu2.blif";
-    use crate::blif::BLIFInfo;
+    use crate::typing::BLIFInfo;
     let info = BLIFInfo::from_file(filename);
     Problem::new(&info, 50, 40)
 }
@@ -220,7 +220,7 @@ fn should_crossover_if_no_overlap() {
     let (nx, ny) = (4, 3);
     let n_pin = 3;
 
-    use crate::problem::make_coors;
+    use crate::typing::make_coors;
     #[rustfmt::skip]
     let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: make_coors(nx, ny) };
 
@@ -267,7 +267,7 @@ fn should_crossover_if_a_left_b_right_do_not_cover_all_pins() {
     let (nx, ny) = (4, 3);
     let n_pin = 3;
 
-    use crate::problem::make_coors;
+    use crate::typing::make_coors;
     #[rustfmt::skip]
     let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: make_coors(nx, ny) };
 
@@ -308,7 +308,7 @@ fn should_crossover_if_a_left_b_right_have_overlapped_pins() {
     let (nx, ny) = (4, 3);
     let n_pin = 3;
 
-    use crate::problem::make_coors;
+    use crate::typing::make_coors;
     #[rustfmt::skip]
     let problem = Problem { nx, ny, nets: vec![], n_pin, pins: vec![], coors: make_coors(nx, ny) };
 

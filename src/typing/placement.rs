@@ -1,8 +1,8 @@
 use rand::seq::SliceRandom;
 
-use crate::bound_box::BoundBox;
-use crate::problem::Problem;
-use crate::typing::{Coor, PinID};
+use super::bound_box::BoundBox;
+use super::problem::Problem;
+use super::{Coor, PinID};
 
 #[derive(Clone)]
 pub struct Placement<'a> {

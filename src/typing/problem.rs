@@ -1,5 +1,5 @@
-use crate::blif::BLIFInfo;
-use crate::placement::Placement;
+use super::blif::BLIFInfo;
+use super::placement::Placement;
 use crate::typing::{Coor, Net, Pin};
 
 pub struct Problem {

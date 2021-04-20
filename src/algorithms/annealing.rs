@@ -1,5 +1,5 @@
 use super::util::take_2;
-use crate::problem::Problem;
+use crate::typing::Problem;
 
 pub struct Params {
     pub t_init: f32,

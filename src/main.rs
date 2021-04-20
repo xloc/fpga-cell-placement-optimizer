@@ -1,14 +1,9 @@
-mod blif;
-use blif::BLIFInfo;
-mod bound_box;
-mod placement;
-mod problem;
+mod algorithms;
 mod typing;
 
-mod algorithms;
 use crate::algorithms::annealing_placement;
 use crate::algorithms::genetic_placement;
-use problem::Problem;
+use typing::{BLIFInfo, Problem};
 
 #[test]
 fn pair_sa() {
