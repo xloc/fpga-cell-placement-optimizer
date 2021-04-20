@@ -37,7 +37,8 @@ impl<'a> Placement<'a> {
     }
 
     pub fn swap(&mut self, ca: Coor, cb: Coor) {
-        self._cost = None;
+        let before_cost = self.cell_cost(ca) + self.cell_cost(cb);
+
         let pa = self.coor2pin[ca.0][ca.1];
         let pb = self.coor2pin[cb.0][cb.1];
 
@@ -56,12 +57,19 @@ impl<'a> Placement<'a> {
             self.pin2coor[pb.unwrap()] = ca;
             self.pin2coor[pa.unwrap()] = cb;
         }
+
+        let after_cost = self.cell_cost(ca) + self.cell_cost(cb);
+        self._cost = Some(self.cost_mut() - before_cost + after_cost);
     }
 
     pub fn cost_mut(&mut self) -> usize {
         if let Some(cost) = self._cost {
             return cost;
         }
+        self.cost_force()
+    }
+
+    pub fn cost_force(&mut self) -> usize {
         let mut hp_cost = 0;
         for net in self.problem.nets.iter() {
             let mut bb = BoundBox::new();

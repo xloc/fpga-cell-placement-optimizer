@@ -69,10 +69,8 @@ fn genetic() {
         "\"cross={:.2}, mut={:.2}\"",
         params.n_crossover, params.p_mutation
     );
-    println!(":[");
     // cost =  ; time =
     genetic_placement(&problem, &params);
-    println!("],");
 }
 
 fn main() {

@@ -374,7 +374,7 @@ fn print_stats(population: &mut Vec<Placement>) {
     let std = variance.sqrt();
 
     println!(
-        "{best:6} {mean:6.0} {std:6.0}",
+        "best={best:6}   mean={mean:6.0}   std={std:4.0}",
         best = best,
         mean = mean,
         std = std

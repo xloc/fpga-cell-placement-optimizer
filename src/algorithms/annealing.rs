@@ -42,7 +42,7 @@ pub fn annealing_placement(problem: &Problem, params: &Params) {
             i_iter,
             t,
             acc_delta,
-            sol.cost_mut()
+            sol.cost_force()
         );
 
         // decrease t
