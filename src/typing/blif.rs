@@ -20,7 +20,11 @@ impl BLIFInfo {
             .expect("cannot cast os_str to str")
             .to_string();
 
-        let pins: Vec<_> = content
+        Self::from_string(filename, content)
+    }
+
+    pub fn from_string(filename: String, s: String) -> Self {
+        let pins: Vec<_> = s
             .lines()
             .filter(|line| line.starts_with(".names"))
             .collect();

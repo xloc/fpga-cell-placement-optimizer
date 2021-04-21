@@ -133,7 +133,7 @@ fn crossover_half<'a, R: Rng>(
     for x in i_divide..problem.nx {
         for y in 0..problem.ny {
             if let Some(pin) = b.coor2pin[x][y] {
-                out_p2c[pin] = Some((x, y));
+                out_p2c[pin] = Some(Coor(x, y));
             }
         }
     }
@@ -150,7 +150,7 @@ fn crossover_half<'a, R: Rng>(
                 } else {
                     // ^ no duplication
                     out.coor2pin[x][y] = a.coor2pin[x][y];
-                    out_p2c[pin] = Some((x, y));
+                    out_p2c[pin] = Some(Coor(x, y));
                 }
             } else {
                 out.coor2pin[x][y] = None;
@@ -162,7 +162,8 @@ fn crossover_half<'a, R: Rng>(
         // println!("{}", pin_id);
         loop {
             // FIXME it can be highly inefficient when empty cell is limited
-            let (x, y) = *problem.coors.choose(rng).unwrap();
+            let coor = *problem.coors.choose(rng).unwrap();
+            let (x, y) = (coor.0, coor.1);
             if out.coor2pin[x][y].is_none() {
                 out.coor2pin[x][y] = Some(pin_id);
                 break;
@@ -174,7 +175,7 @@ fn crossover_half<'a, R: Rng>(
     for x in 0..problem.nx {
         for y in 0..problem.ny {
             if let Some(pin) = out.coor2pin[x][y] {
-                d_new_pin2coor[pin] = Some((x, y));
+                d_new_pin2coor[pin] = Some(Coor(x, y));
             }
         }
     }
@@ -204,7 +205,7 @@ fn derive_pin2coor(
     for x in 0..nx {
         for y in 0..ny {
             if let Some(pin) = coor2pin[x][y] {
-                d_new_pin2coor[pin] = Some((x, y));
+                d_new_pin2coor[pin] = Some(Coor(x, y));
             }
         }
     }

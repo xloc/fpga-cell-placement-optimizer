@@ -21,7 +21,7 @@ impl BoundBox {
     }
 
     pub fn add_coor(&mut self, coor: Coor) {
-        let (x, y) = coor;
+        let (x, y) = (coor.0, coor.1);
 
         if !self.initialized {
             self.top = y;

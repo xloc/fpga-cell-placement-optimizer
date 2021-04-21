@@ -2,24 +2,25 @@ use super::blif::BLIFInfo;
 use super::placement::Placement;
 use crate::typing::{Coor, Net, Pin};
 
+pub fn make_coors(nx: usize, ny: usize) -> Vec<Coor> {
+    let mut coors: Vec<Coor> = Vec::new();
+    for x in 0..nx {
+        for y in 0..ny {
+            coors.push(Coor(x, y));
+        }
+    }
+    coors
+}
+
 pub struct Problem {
     pub nx: usize,
     pub ny: usize,
 
     pub n_pin: usize,
-    pub coors: Vec<Coor>,
     pub nets: Vec<Net>,
     pub pins: Vec<Pin>,
-}
 
-pub fn make_coors(nx: usize, ny: usize) -> Vec<Coor> {
-    let mut coors: Vec<Coor> = Vec::new();
-    for x in 0..nx {
-        for y in 0..ny {
-            coors.push((x, y));
-        }
-    }
-    coors
+    pub coors: Vec<Coor>,
 }
 
 impl Problem {

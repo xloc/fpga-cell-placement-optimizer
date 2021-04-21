@@ -24,7 +24,7 @@ impl<'a> Placement<'a> {
 
         let mut grid: Vec<Vec<Option<PinID>>> = vec![vec![None; problem.ny]; problem.nx];
         for (i_pin, coor) in cell_assignment.iter().enumerate() {
-            let (x, y) = *coor;
+            let (x, y) = (coor.0, coor.1);
             grid[x][y] = Some(i_pin);
         }
 
@@ -88,7 +88,7 @@ impl<'a> Placement<'a> {
     }
 
     pub fn cell_cost(&self, coor: Coor) -> usize {
-        let (x, y) = coor;
+        let (x, y) = (coor.0, coor.1);
         if let Some(pin) = self.coor2pin[x][y] {
             let mut hp_cost = 0;
             for net_id in self.problem.pins[pin].net_ids.iter() {
@@ -118,7 +118,7 @@ fn it_should_swap_correctly() {
         vec![None,    None,    Some(2)], // x=3 
     ];
 
-    let pin2coor = vec![(0, 0), (2, 1), (3, 2)];
+    let pin2coor = vec![Coor(0, 0), Coor(2, 1), Coor(3, 2)];
 
     use crate::typing::Net;
     #[rustfmt::skip]
@@ -132,19 +132,19 @@ fn it_should_swap_correctly() {
     #[rustfmt::skip]
     let mut p = Placement { problem: &problem, coor2pin, pin2coor, _cost:None };
 
-    p.swap((0, 0), (2, 1));
+    p.swap(Coor(0, 0), Coor(2, 1));
     assert_eq!(p.coor2pin[0][0], Some(1));
     assert_eq!(p.coor2pin[2][1], Some(0));
     assert_eq!(p.pin2coor, vec![(2, 1), (0, 0), (3, 2)]);
-    p.swap((0, 0), (2, 1));
+    p.swap(Coor(0, 0), Coor(2, 1));
 
-    p.swap((0, 0), (1, 0));
+    p.swap(Coor(0, 0), Coor(1, 0));
     assert_eq!(p.coor2pin[0][0], None);
     assert_eq!(p.coor2pin[1][0], Some(0));
     assert_eq!(p.pin2coor, vec![(1, 0), (2, 1), (3, 2)]);
-    p.swap((0, 0), (1, 0));
+    p.swap(Coor(0, 0), Coor(1, 0));
 
-    p.swap((3, 1), (0, 0));
+    p.swap(Coor(3, 1), Coor(0, 0));
     assert_eq!(p.coor2pin[3][1], Some(0));
     assert_eq!(p.coor2pin[1][0], None);
     assert_eq!(p.pin2coor, vec![(3, 1), (2, 1), (3, 2)]);
@@ -162,7 +162,7 @@ fn should_calculate_cost_correctly() {
         vec![None,    None,    Some(2)], // x=3 
     ];
 
-    let pin2coor = vec![(0, 0), (2, 1), (3, 2)];
+    let pin2coor = vec![Coor(0, 0), Coor(2, 1), Coor(3, 2)];
 
     use crate::typing::Net;
     #[rustfmt::skip]
@@ -178,14 +178,14 @@ fn should_calculate_cost_correctly() {
 
     assert_eq!(p.cost_mut(), 8);
 
-    p.swap((0, 0), (2, 1));
+    p.swap(Coor(0, 0), Coor(2, 1));
     assert_eq!(p.cost_mut(), 5);
-    p.swap((0, 0), (2, 1));
+    p.swap(Coor(0, 0), Coor(2, 1));
 
-    p.swap((0, 0), (1, 0));
+    p.swap(Coor(0, 0), Coor(1, 0));
     assert_eq!(p.cost_mut(), 6);
-    p.swap((0, 0), (1, 0));
+    p.swap(Coor(0, 0), Coor(1, 0));
 
-    p.swap((3, 1), (0, 0));
+    p.swap(Coor(3, 1), Coor(0, 0));
     assert_eq!(p.cost_mut(), 2);
 }
