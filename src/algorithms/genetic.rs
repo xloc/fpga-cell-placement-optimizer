@@ -5,6 +5,7 @@ use crate::typing::Placement;
 use crate::typing::Problem;
 use crate::typing::{Coor, PinID};
 
+#[derive(Debug)]
 pub struct Params {
     pub n_generation: usize,
     pub n_population: usize,
@@ -93,9 +94,13 @@ fn test_selection() {
     );
 }
 
-fn mutate(placement: &mut Placement) {
-    let (ca, cb) = super::util::take_2(&placement.problem.coors);
-    placement.swap(ca, cb);
+fn mutate(placement: &mut Placement, i_iter: &usize) {
+    let n_swap = if i_iter < &10_000 { 10 } else { 2 };
+    // for _ in 0..rand::thread_rng().gen_range(1..2) {
+    for _ in 0..1 {
+        let (ca, cb) = super::util::take_2(&placement.problem.coors);
+        placement.swap(ca, cb);
+    }
 }
 
 fn improve(mut placement: Placement) -> Option<Placement> {
@@ -128,12 +133,16 @@ fn crossover_half<'a, R: Rng>(
     // TODO: vertical division
     let problem = a.problem;
 
+    let mut empty_coors = Vec::new();
+
     // copy b.right to out.right
     let mut out_p2c: Vec<Option<Coor>> = vec![None; problem.n_pin];
     for x in i_divide..problem.nx {
         for y in 0..problem.ny {
             if let Some(pin) = b.coor2pin[x][y] {
                 out_p2c[pin] = Some(Coor(x, y));
+            } else {
+                empty_coors.push(Coor(x, y));
             }
         }
     }
@@ -147,6 +156,7 @@ fn crossover_half<'a, R: Rng>(
                     // ^ if duplicates: pin[a.left] already in c.right
                     // println!("duplicate :pin={}, coor={:?}", pin, dup_coor);
                     // duplicated_pins
+                    empty_coors.push(Coor(x, y));
                 } else {
                     // ^ no duplication
                     out.coor2pin[x][y] = a.coor2pin[x][y];
@@ -154,21 +164,15 @@ fn crossover_half<'a, R: Rng>(
                 }
             } else {
                 out.coor2pin[x][y] = None;
+                empty_coors.push(Coor(x, y));
             }
         }
     }
 
     for (pin_id, _) in out_p2c.iter().enumerate().filter(|(_, p)| p.is_none()) {
-        // println!("{}", pin_id);
-        loop {
-            // FIXME it can be highly inefficient when empty cell is limited
-            let coor = *problem.coors.choose(rng).unwrap();
-            let (x, y) = (coor.0, coor.1);
-            if out.coor2pin[x][y].is_none() {
-                out.coor2pin[x][y] = Some(pin_id);
-                break;
-            }
-        }
+        let select_i = rng.gen_range(0..empty_coors.len());
+        let coor = empty_coors.swap_remove(select_i);
+        out.coor2pin[coor.0][coor.1] = Some(pin_id);
     }
 
     let mut d_new_pin2coor: Vec<Option<Coor>> = vec![None; problem.n_pin];
@@ -357,7 +361,7 @@ fn print_coor2pin(problem: &Problem, coor2pin: &Vec<Vec<Option<PinID>>>) {
     }
 }
 
-fn print_stats(population: &mut Vec<Placement>) {
+fn print_stats(i_iter: &usize, population: &mut Vec<Placement>) {
     let best = population[0].cost_panic();
     let mean = population
         .iter_mut()
@@ -375,11 +379,14 @@ fn print_stats(population: &mut Vec<Placement>) {
     let std = variance.sqrt();
 
     println!(
-        "best={best:6}   mean={mean:6.0}   std={std:4.0}",
+        "@ i={i:7} | best={best:6} | mean={mean:6.0} | std={std:4.0} | n_pop={n_pop:4}",
+        i = i_iter,
         best = best,
         mean = mean,
-        std = std
+        std = std,
+        n_pop = population.len()
     );
+    println!("{}", serde_json::to_string(&population[0]).unwrap());
 }
 
 pub fn genetic_placement(problem: &Problem, params: &Params) {
@@ -401,7 +408,7 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
         });
         population.sort_by_cached_key(|i| i.cost_panic());
         if i_iter % 1000 == 0 {
-            print_stats(&mut population);
+            print_stats(&i_iter, &mut population);
         }
         // break if converge
         if i_iter > params.n_generation {
@@ -439,17 +446,16 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
         mutation_base.extend(crossed.into_iter());
         for i in 0..mutation_base.len() {
             if rng.gen::<f32>() < params.p_mutation {
-                mutate(&mut mutation_base[i]);
+                mutate(&mut mutation_base[i], &i_iter);
             }
         }
 
-        // improvement
-        // let improved = improve(survived.choose(rng).unwrap().clone());
-
-        // improvement and join population
+        // join population
         population = elite;
         population.extend(mutation_base);
-        // if let Some(p) = improved {
+
+        // // local improvement
+        // if let Some(p) = improve(population.choose(rng).unwrap().clone()) {
         //     population.push(p);
         // }
     }

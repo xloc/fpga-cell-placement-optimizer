@@ -1,16 +1,20 @@
 use rand::seq::SliceRandom;
+use serde::Serialize;
 
 use super::bound_box::BoundBox;
 use super::problem::Problem;
 use super::{Coor, PinID};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Placement<'a> {
+    #[serde(skip_serializing)]
     pub problem: &'a Problem,
 
     pub pin2coor: Vec<Coor>,
+    #[serde(skip_serializing)]
     pub coor2pin: Vec<Vec<Option<PinID>>>,
 
+    #[serde(skip_serializing)]
     pub _cost: Option<usize>,
 }
 
@@ -135,19 +139,19 @@ fn it_should_swap_correctly() {
     p.swap(Coor(0, 0), Coor(2, 1));
     assert_eq!(p.coor2pin[0][0], Some(1));
     assert_eq!(p.coor2pin[2][1], Some(0));
-    assert_eq!(p.pin2coor, vec![(2, 1), (0, 0), (3, 2)]);
+    assert_eq!(p.pin2coor, vec![Coor(2, 1), Coor(0, 0), Coor(3, 2)]);
     p.swap(Coor(0, 0), Coor(2, 1));
 
     p.swap(Coor(0, 0), Coor(1, 0));
     assert_eq!(p.coor2pin[0][0], None);
     assert_eq!(p.coor2pin[1][0], Some(0));
-    assert_eq!(p.pin2coor, vec![(1, 0), (2, 1), (3, 2)]);
+    assert_eq!(p.pin2coor, vec![Coor(1, 0), Coor(2, 1), Coor(3, 2)]);
     p.swap(Coor(0, 0), Coor(1, 0));
 
     p.swap(Coor(3, 1), Coor(0, 0));
     assert_eq!(p.coor2pin[3][1], Some(0));
     assert_eq!(p.coor2pin[1][0], None);
-    assert_eq!(p.pin2coor, vec![(3, 1), (2, 1), (3, 2)]);
+    assert_eq!(p.pin2coor, vec![Coor(3, 1), Coor(2, 1), Coor(3, 2)]);
 }
 
 #[test]

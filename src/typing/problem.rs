@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use super::blif::BLIFInfo;
 use super::placement::Placement;
 use crate::typing::{Coor, Net, Pin};
@@ -12,6 +14,7 @@ pub fn make_coors(nx: usize, ny: usize) -> Vec<Coor> {
     coors
 }
 
+#[derive(Serialize)]
 pub struct Problem {
     pub nx: usize,
     pub ny: usize,
@@ -20,6 +23,7 @@ pub struct Problem {
     pub nets: Vec<Net>,
     pub pins: Vec<Pin>,
 
+    #[serde(skip_serializing)]
     pub coors: Vec<Coor>,
 }
 

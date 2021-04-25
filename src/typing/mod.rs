@@ -11,7 +11,7 @@ pub use placement::Placement;
 pub use problem::make_coors;
 pub use problem::Problem;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub struct Coor(pub usize, pub usize);
 
 pub type PinID = usize;
