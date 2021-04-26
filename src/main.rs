@@ -11,6 +11,7 @@ use clap::{AppSettings, Clap};
 #[derive(Clap)]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
+    pub circuit_path: String,
     pub n_generation: usize,
     pub n_population: usize,
     pub n_elite: usize,
@@ -22,8 +23,8 @@ struct Opts {
 fn main() {
     let opts: Opts = Opts::parse();
 
-    let filename = "benchmarks/alu2.blif";
-    let info = BLIFInfo::from_file(filename);
+    let filename = opts.circuit_path;
+    let info = BLIFInfo::from_file(&filename);
     let problem = Problem::new(&info, 50, 40);
     let params = algorithms::GeneticParams {
         n_generation: opts.n_generation,
@@ -39,3 +40,23 @@ fn main() {
     // // cost =  ; time =
     genetic_placement(&problem, &params);
 }
+
+// fn main() {
+//     let opts: Opts = Opts::parse();
+
+//     let filename = opts.circuit_path;
+//     let info = BLIFInfo::from_file(&filename);
+//     let problem = Problem::new(&info, 50, 40);
+//     let params = algorithms::AnnealingParams {
+//         t_init: 5.0,
+//         t_decrease_factor: 0.9,
+//         t_terminate: 0.1,
+//     };
+
+//     println!("{:?}", params);
+//     use algorithms::annealing_placement;
+//     let problem_json = serde_json::to_string(&problem).unwrap();
+//     println!("{}", problem_json);
+
+//     annealing_placement(&problem, &params);
+// }

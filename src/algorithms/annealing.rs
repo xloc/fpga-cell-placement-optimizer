@@ -1,6 +1,7 @@
 use super::util::take_2;
 use crate::typing::Problem;
 
+#[derive(Debug)]
 pub struct Params {
     pub t_init: f32,
     pub t_decrease_factor: f32,

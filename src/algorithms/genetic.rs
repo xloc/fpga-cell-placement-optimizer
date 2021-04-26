@@ -389,6 +389,24 @@ fn print_stats(i_iter: &usize, population: &mut Vec<Placement>) {
     println!("{}", serde_json::to_string(&population[0]).unwrap());
 }
 
+fn last_n_equal(vec: &Vec<usize>, n: usize) -> bool {
+    if n < 2 {
+        panic!("n should >= 2");
+    }
+
+    if vec.len() < n {
+        return false;
+    }
+
+    let last = *vec.last().unwrap();
+    for i in (vec.len() - n)..(vec.len() - 1) {
+        if vec[i] != last {
+            return false;
+        }
+    }
+    return true;
+}
+
 pub fn genetic_placement(problem: &Problem, params: &Params) {
     // init population
     let mut population: Vec<Placement> = Vec::new();
@@ -399,6 +417,7 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
     }
 
     let mut i_iter = 0;
+    let mut costs = Vec::new();
 
     let rng = &mut rand::thread_rng();
     loop {
@@ -409,6 +428,10 @@ pub fn genetic_placement(problem: &Problem, params: &Params) {
         population.sort_by_cached_key(|i| i.cost_panic());
         if i_iter % 1000 == 0 {
             print_stats(&i_iter, &mut population);
+            costs.push(population.first().unwrap().cost_panic());
+            if last_n_equal(&costs, 10) {
+                break;
+            }
         }
         // break if converge
         if i_iter > params.n_generation {
